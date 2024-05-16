@@ -1,0 +1,12 @@
+venv
+*mid 
+*mov 
+*png
+
+.DS_Store
+*jpg 
+*wav 
+*mp4
+
+
+*pyc 

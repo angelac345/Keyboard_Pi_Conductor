@@ -98,85 +98,6 @@ def video_to_box_info(vid_path: str) -> list:
     return info, bounding_boxes  
 
 
-
-def bbox_to_scale(bounding_boxes): 
-    diag_len = [ (time, np.sqrt((box[2] - box[0])**2 + (box[3] - box[1])**2)) for time, box in bounding_boxes]
-
-    timestamps, diag_len = zip(*diag_len)
-
-    diag_len = np.array(diag_len)
-    timestamps = np.array(timestamps)
-
-    frame_num = np.arange(len(diag_len)) 
-
-    data = np.hstack((np.expand_dims(timestamps, -1), np.expand_dims(diag_len, -1))) 
-    
-
-    # smoothign forward by taking hte mean of hte next `smooth_size` frames, including the current one
-
-    smoothing = copy.deepcopy(data)
-    smooth_size = 3
-    for i in range(len(data)): 
-        smoothing[i, 1] = np.mean(data[i:min(len(data), i+smooth_size), 1]) 
-
-
-    # mask the data points that have a slope difference smaller than `epsi` with their neighbors
-    slope_view = 4
-    epsi = 1.1
-    data = smoothing
-
-    slope_diffs = []
-    for i in range(len(data)):
-        if i == 0 or i == len(data) - 1: 
-            slope_diffs.append(0)
-            continue
-        slope_left = np.polyfit(
-            data[max(0, i-slope_view):i+1, 0], 
-            data[max(0, i-slope_view):i+1, 1], 
-            1
-        )
-
-        slope_right = np.polyfit(
-            data[i:min(len(data), i+slope_view), 0], 
-            data[i:min(len(data), i+slope_view), 1], 
-            1
-        )
-
-        slope_diff = abs(slope_left[0] - slope_right[0])
-        slope_diffs.append(slope_diff)
-
-
-    slope_diffs = np.array(slope_diffs) # contains at each point the difference in slope between points to its left and to its right
-    mask = [True] * slope_view 
-
-    for i in range(slope_view, len(slope_diffs) - slope_view): 
-        max_diff = np.max(slope_diffs[i-slope_view:i+slope_view])
-        
-        if max_diff < epsi:
-            mask.append(False)
-        elif max_diff == slope_diffs[i]: 
-            mask.append(True)
-        else: 
-            mask.append(False)
-
-    mask.extend([True] * slope_view)
-    
-    masked = data[mask]             # masked contains the data points that have a slope difference greater than `epsi` to left and right 
-
-    plt.xlabel('Frame Number')
-    plt.ylabel('BBox Diagonal Length') 
-    plt.plot(smoothing[:, 0], smoothing[:, 1], c='b') 
-    plt.scatter(masked[:, 0], masked[:, 1], c='r')
-    plt.savefig('plot.png')
-
-    
-    max_expand, min_expand = diag_len.max(), diag_len.min() 
-    
-    open_scale = (masked[:, 1] - min_expand) / (max_expand - min_expand)
-
-    return masked[:, 0], open_scale
-    
-
 def converter(timestamp, open_scale): 
     assert len(timestamp) == len(open_scale) 
 
@@ -186,13 +107,6 @@ def converter(timestamp, open_scale):
     
     return output 
      
-def main_disgarded(video_path): 
-    info, bounding_boxes = video_to_box_info(video_path) 
-    timestamps, open_scale = bbox_to_scale(bounding_boxes) 
-    # timestamps = timestamps / info['fps']
-    ir = converter(timestamps, open_scale) 
-    return info, ir 
-
 def gesture_ir_main(video_path): 
     info, bounding_boxes = video_to_box_info(video_path)
     diag_len = bounding_boxes

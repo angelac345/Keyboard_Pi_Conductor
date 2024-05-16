@@ -4,6 +4,7 @@ import midi2audio
 import pygame
 import numpy as np
 
+
 def convert_midi_to_audio(midi_file, audio_file):
     """
     Convert a MIDI file to an audio file using midi2audio.
@@ -12,7 +13,8 @@ def convert_midi_to_audio(midi_file, audio_file):
         midi_file (str): Path to the MIDI file.
         audio_file (str): Path to save the audio file.
     """
-    fs = midi2audio.FluidSynth(sound_font='/usr/share/sounds/sf2/FluidR3_GM.sf2')
+    fs = midi2audio.FluidSynth(
+        sound_font='/usr/share/sounds/sf2/FluidR3_GM.sf2')
     fs.midi_to_audio(midi_file, audio_file)
 
 
@@ -32,28 +34,7 @@ def play_audio_file(audio_file):
     pygame.mixer.quit()
 
 
-def seconds_to_offset(seconds, score):
-    """
-    Convert seconds to offset (quarter note lengths) based on the given tempo.
-
-    Args:
-        seconds (float): Time in seconds.
-        bpm (int): Beats per minute (tempo).
-
-    Returns:
-        float: Offset in quarter note lengths.
-    """
-    tempo_obj = score.flat.getElementsByClass(tempo.TempoIndication)[0]
-    time_signature = score.flat.getElementsByClass(meter.TimeSignature)[0]
-
-    quarter_lengths = tempo_obj.getnaio().secondsToQuarterLength(seconds)
-
-    offset = quarter_lengths / time_signature.ratioString
-
-    return offset
-
-
-def modify_volume(midi_file, volume_changes, out_midi_file,bpm=60):
+def modify_volume(midi_file, volume_changes, out_midi_file, bpm=60):
     """
     Modify the volume of a MIDI file based on user input.
 
@@ -73,73 +54,54 @@ def modify_volume(midi_file, volume_changes, out_midi_file,bpm=60):
     for note in flat_score.notes:
         print(f'note offset: {note.offset}')
 
-
     volume = 0
     low, high = 0, 0
-    for _, _, volume_change in volume_changes: 
-        volume += volume_change 
-        low = min(low, volume) 
-        high = max(high, volume) 
-    
-    for i in range(len(volume_changes)): 
+    for _, _, volume_change in volume_changes:
+        volume += volume_change
+        low = min(low, volume)
+        high = max(high, volume)
+
+    for i in range(len(volume_changes)):
         t1, t2, volume_change = volume_changes[i]
-        volume_changes[i] = (t1, t2, volume_change / (high - low) * 87) 
-    
-    i = 0 
+        volume_changes[i] = (t1, t2, volume_change / (high - low) * 87)
+
+    i = 0
     volume = 0 - low + 40
 
     note_volume_list = []
-    while flat_score.notes[i].offset < volume_changes[i][0]: 
+    while flat_score.notes[i].offset < volume_changes[i][0]:
         note_volume_list.append(volume)
-        i += 1 
-    
-    buffer = [] 
+        i += 1
 
-    for start_time_seconds, end_time_seconds, volume_change in volume_changes: 
+    buffer = []
+
+    for start_time_seconds, end_time_seconds, volume_change in volume_changes:
         end_offset = bpm * end_time_seconds / 60
 
-        while i < len(flat_score.notes) and flat_score.notes[i].offset < end_offset: 
-            buffer.append(flat_score.notes[i]) 
+        while i < len(flat_score.notes) and flat_score.notes[i].offset < end_offset:
+            buffer.append(flat_score.notes[i])
             i += 1
-        
-        for note in buffer: 
+
+        for note in buffer:
             volume += volume_change / len(buffer)
             note_volume_list.append(volume)
 
         buffer = []
-    
-    while i < len(flat_score.notes): 
+
+    while i < len(flat_score.notes):
         note_volume_list.append(volume)
         i += 1
 
     note_volume_list = np.array(note_volume_list)
-    note_volume_list = (note_volume_list - note_volume_list.min()) / (note_volume_list.max() - note_volume_list.min()) * 100 + 20
-    
+    note_volume_list = (note_volume_list - note_volume_list.min()) / \
+        (note_volume_list.max() - note_volume_list.min()) * 100 + 20
+
     print('note_volume_list: ', note_volume_list)
-    for i in range(len(note_volume_list)): 
+    for i in range(len(note_volume_list)):
         flat_score.notes[i].volume.velocity = note_volume_list[i]
-    # for start_time_seconds, end_time_seconds, volume_change in volume_changes:
-    #     start_offset = bpm * start_time_seconds/60
-    #     end_offset = bpm * end_time_seconds/60
-
-    #     print(f'start_offset: {start_offset}, end_offset: {end_offset}')
-    #     for note in flat_score.notes:
-    #         if start_offset <= note.offset < end_offset:
-    #             print("old vel", note.volume.velocity)
-    #             print(f'volume change: {volume_change}')
-    #             if volume_change == -100:
-    #                 # If volume_change is -100, set the velocity to 0 (silence)
-    #                 note.volume.velocity = 1
-    #                 print("new val", max(20, min(127, 0)))
-    #             else:
-    #                 # new_velocity = int(note.volume.velocity *
-    #                 #                    (1 + volume_change / 100))
-    #                 new_velocity = int(note.volume.velocity  + volume_change)
-
-    #                 print("new val", max(20, min(127, new_velocity)))
-    #                 note.volume.velocity = max(1, min(127, new_velocity))
 
     score.write('midi', out_midi_file)
+
 
 def test_volume_modification():
     volume_changes = [
@@ -148,9 +110,7 @@ def test_volume_modification():
     ]
 
     modified_score = modify_volume(
-        '/home/pi/Documents/ECE5725_final_proj/output_file.mid', volume_changes,'output_file.mid')
-
-    # modified_score.write('midi', 'output_file.mid')
+        '/home/pi/Documents/ECE5725_final_proj/output_file.mid', volume_changes, 'output_file.mid')
 
     # Convert the modified MIDI file to an audio file
     audio_file = 'output_audio.wav'
@@ -164,4 +124,3 @@ if __name__ == "__main__":
     test_volume_modification()
     # import sys
     # play_audio_file(sys.argv[1])
-
